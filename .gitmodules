@@ -1,0 +1,21 @@
+[submodule "deps/libDaisy"]
+	path = deps/libDaisy
+	url = https://github.com/electro-smith/libDaisy.git
+[submodule "deps/DaisySP"]
+	path = deps/DaisySP
+	url = https://github.com/electro-smith/DaisySP.git
+[submodule "deps/RTNeural"]
+	path = deps/RTNeural
+	url = https://github.com/jatinchowdhury18/RTNeural.git
+[submodule "deps/q"]
+	path = deps/q
+	url = https://github.com/cycfi/q.git
+[submodule "deps/eigen"]
+	path = deps/eigen
+	url = https://gitlab.com/libeigen/eigen
+[submodule "deps/gcem"]
+	path = deps/gcem
+	url = https://github.com/kthohr/gcem.git
+[submodule "deps/infra"]
+	path = deps/infra
+	url = https://github.com/cycfi/infra.git
