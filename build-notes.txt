@@ -1,0 +1,30 @@
+
+
+1. Trim the backside midi and expression solder pin joints, they are too tall to fit potentiometers on top. 
+   Put potentiometer covers on the bottom of the potentiometers, or they will short out the midi and expression jack leads.
+
+2. Solder potentiometers. Install board into enclosure with potentiometers and switches in place, and tighten jack nuts. 
+   This will ensure everything is set properly before soldering. Solder the 6 potentiometers (BUT NOT THE TOGGLE SWITCHES YET).
+
+3. Remove the pcb and inspect. 
+
+4. Solder toggles. VERY IMPORTANT: APPLY ELECTRICAL TAPE TO OUTSIDE OF TOGGLE BLOCKS, OTHERWISE WILL SHORT
+   OUT ON THE SIDES OF THE POTENTIOMETER LEADS. Install toggles on pcb, then put pcb into enclosure, tightening
+   everything in place (including 4 audio/exp/midi jacks) as with the potentiometers to ensure proper fit. 
+   Solder the 3 toggle switches.
+
+5. Solder the 2 LEDs on the pcb. Trim LED leads as neccessary, testing fit into LED bezels before soldering. 
+   Solder LEDs onto the pcb and test fit in enclosure. 
+
+6. Solder the power jack wires to the pcb with pcb not installed in enclosure. There is not much room
+   in the enclosure with the pcb installed so this makes it easer to solder the power wires. 
+
+7. Install pcb back into enclosure, then fit power jack and power jack nut into enclosure. There is not much room
+   between the power jack nut and pcb. Solder the power jack wires to the power jack leads. 
+
+8. Solder the 4 momentary footswitch wires to the momentary footswitches before installing into the enclosure.
+   Its easier to do this first. Then install the footswitches into the enclosure and solder footswitch wires to the pcb.
+
+9. Tighten all nuts. Visually inspect and check for anything loose. 
+
+10. Install Daisy Seed and test.
