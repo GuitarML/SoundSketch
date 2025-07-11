@@ -1,4 +1,9 @@
 // Neptune Reverb/Delay Pedal
+// For SoundSketch pedal
+//   Note: Funbox code used as starting point, notes may contain old references
+// swapped toggle 2 and 3 action, removed persistent storage preset footswitch
+// aux footswitch does "swell" action, moves decay (size) to 1.0 as long as held
+
 
 #include "daisy_petal.h"
 #include "daisysp.h"
@@ -62,6 +67,10 @@ float  del_FDBK_Override;
 float ramp;
 bool mode_changed;
 bool triggerMode;
+
+bool swell = false;
+bool update_switches;
+
 
 bool            pswitch1[2], pswitch2[2], pswitch3[2];
 int             switch1[2], switch2[2], switch3[2];
@@ -169,30 +178,6 @@ delay             delayL;
 delay             delayR;  
 
 
-// Setting Struct containing parameters we want to save to flash
-// Using the persistent storage example found on the Daisy Forum:
-//   https://forum.electro-smith.com/t/saving-values-to-flash-memory-using-persistentstorage-class-on-daisy-pod/4306
-struct Settings {
-
-        float knobs[6]; // TODO Add values for alternate parameters
-        int toggles[3];
-
-	//Overloading the != operator
-	//This is necessary as this operator is used in the PersistentStorage source code
-	bool operator!=(const Settings& a) const {
-        return !(a.knobs[0]==knobs[0] && a.knobs[1]==knobs[1] && a.knobs[2]==knobs[2] && a.knobs[3]==knobs[3] && a.knobs[4]==knobs[4] && a.knobs[5]==knobs[5] && a.toggles[0]==toggles[0] && a.toggles[1]==toggles[1] && a.toggles[2]==toggles[2]);
-        //return !(a.p1==p1 && a.p2==p2 && a.p3==p3 && a.p4==p4 && a.p5==p5 && a.p6==p6);
-    }
-};
-
-//Persistent Storage Declaration. Using type Settings and passed the devices qspi handle
-PersistentStorage<Settings> SavedSettings(hw.seed.qspi);
-bool use_preset = false;
-bool trigger_save = false;
-int blink = 100;
-bool save_check = false;
-bool update_switches;
-
 
 
 void SetAudioBypass(bool enabled) {
@@ -214,44 +199,6 @@ void InitTrueBypass(Pin relayPin, Pin mutePin) {
     audioMuteTrigger.Init(mutePin, GPIO::Mode::OUTPUT);
     SetAudioMute(false);
 
-}
-
-void Load() {
-
-    //Reference to local copy of settings stored in flash
-    Settings &LocalSettings = SavedSettings.GetSettings();
-	
-    knobValues[0] = LocalSettings.knobs[0];
-    knobValues[1] = LocalSettings.knobs[1];
-    knobValues[2] = LocalSettings.knobs[2];
-    knobValues[3] = LocalSettings.knobs[3];
-    knobValues[4] = LocalSettings.knobs[4];
-    knobValues[5] = LocalSettings.knobs[5];
-
-    toggleValues[0] = LocalSettings.toggles[0];
-    toggleValues[1] = LocalSettings.toggles[1];
-    toggleValues[2] = LocalSettings.toggles[2];
-
-    use_preset = true;
-
-}
-
-void Save() {
-    //Reference to local copy of settings stored in flash
-    Settings &LocalSettings = SavedSettings.GetSettings();
-
-    LocalSettings.knobs[0] = knobValues[0];
-    LocalSettings.knobs[1] = knobValues[1];
-    LocalSettings.knobs[2] = knobValues[2];
-    LocalSettings.knobs[3] = knobValues[3];
-    LocalSettings.knobs[4] = knobValues[4];
-    LocalSettings.knobs[5] = knobValues[5];
-
-    LocalSettings.toggles[0] = toggleValues[0];
-    LocalSettings.toggles[1] = toggleValues[1];
-    LocalSettings.toggles[2] = toggleValues[2];
-
-    trigger_save = true;
 }
 
 
@@ -284,10 +231,10 @@ void updateSwitch1()
     force_reset = true; // This allows the knob controlled params to be reset without moving the knobs, when a new mode is selected
 }
 
-void updateSwitch3() 
+void updateSwitch2() 
 {
     // DELAY ///////////////////////
-    if (toggleValues[2] == 0) {                // If switch3 is left, Normal FWD mode
+    if (toggleValues[1] == 0) {                // If switch2 is left, Normal FWD mode
         delayL.active = true;
         delayR.active = true;
         delayL.del->setOctave(false); 
@@ -296,7 +243,7 @@ void updateSwitch3()
         delayR.reverseMode = false;
 
 
-    } else if (toggleValues[2] == 2) {        // If switch3 is right, REV mode
+    } else if (toggleValues[1] == 2) {        // If switch2 is right, REV mode
         delayL.active = true;
         delayR.active = true;
         delayL.del->setOctave(false); 
@@ -304,7 +251,7 @@ void updateSwitch3()
         delayL.reverseMode = true;
         delayR.reverseMode = true;
 
-    } else {                           // If switch3 is middle, Octave mode
+    } else {                           // If switch2 is middle, Octave mode
         delayL.active = true;
         delayR.active = true;
         delayL.del->setOctave(true); 
@@ -321,16 +268,29 @@ void UpdateButtons()
     if(hw.switches[Soundsketch::FOOTSWITCH_2].FallingEdge())
     {
         if (!expression_pressed && (samplesTilMuteOff < 1)) { // This keeps the pedal from switching bypass when entering/leaving Set Expression mode
-            bypass = !bypass;
-            led2.Set(bypass ? 0.0f : 1.0f);
+            if (alternateMode) {
+                alternateMode = false;
+                force_reset = true; // force parameter reset to enforce current knob settings when leaving alternate mode
+                led2.Set(1.0f);
+            } else {
+                bypass = !bypass;
+                led2.Set(bypass ? 0.0f : 1.0f);
 
-            // Mute audio output to remove pop when relay bypass is switched
-            // and start countdowns for triggering the relay bypass, and then unmuting audio
-            SetAudioMute(true);
-            samplesTilMuteOff = muteOffTransitionTimeInSamples;
-            samplesTilBypassToggle = bypassToggleTransitionTimeInSamples;
+                // Mute audio output to remove pop when relay bypass is switched
+                // and start countdowns for triggering the relay bypass, and then unmuting audio
+                SetAudioMute(true);
+                samplesTilMuteOff = muteOffTransitionTimeInSamples;
+                samplesTilBypassToggle = bypassToggleTransitionTimeInSamples;
+            }
+
         }
         expression_pressed = false;
+    }
+
+    // Toggle Alternate mode by holding down the left footswitch, if not already in alternate mode and not in bypass
+    if(hw.switches[Soundsketch::FOOTSWITCH_2].TimeHeldMs() >= 600 && !alternateMode && !bypass && !hw.switches[Soundsketch::FOOTSWITCH_1].Pressed() && !expression_pressed) { // TODO Check logic here
+        alternateMode = true;
+        led2.Set(0.5f);  // Dim LED in alternate mode
     }
 
 
@@ -354,49 +314,19 @@ void UpdateButtons()
     if(hw.switches[Soundsketch::FOOTSWITCH_2].TimeHeldMs() >= 2000 && hw.switches[Soundsketch::FOOTSWITCH_1].TimeHeldMs() >= 2000) {
         expHandler.Reset();
         led2.Set(bypass ? 0.0f : 1.0f); 
-        led1.Set(0.0f); 
+        led1.Set(swell ? 1.0f : 0.0f);
 
     }
 
-
-    // Save Preset  - Either raise the hold time for save check, or instruct user to hold left then right, let go right then left for Set Expression mode
-    if(hw.switches[Soundsketch::FOOTSWITCH_1].TimeHeldMs() >= 700 && !save_check && !expression_pressed && hw.switches[Soundsketch::FOOTSWITCH_2].TimeHeldMs() <= 50)  // TODO Check that this logic keeps peset separate from expression
-    {
-        Save();
-        save_check = true;
-    }
-
-    // Load Preset
-    if(hw.switches[Soundsketch::FOOTSWITCH_1].FallingEdge() && !expression_pressed)
-    {
-        if (save_check) {
-            save_check = false;
-        } else {
-            use_preset = !use_preset;
-            if (use_preset) {
-                Load();
-            } else {
-                update_switches = true; // Need to update switches based on current switch position after turning off preset
-            }
-            led1.Set(use_preset ? 1.0f : 0.0f); 
-
-        }
-        // Need to update switches based on preset
-        updateSwitch1();
-        //updateSwitch2();
-        updateSwitch3();
-    }
-
-    // Handle blink for saving a preset
-    if (blink < 100) {
-        blink += 1;
-        led1.Set(1.0f); 
+    if (hw.switches[Soundsketch::FOOTSWITCH_1].Pressed()) {
+        swell = true;
+        reverb->SetParameter(::Parameter2::LineDecay, 1.0);   
     } else {
-        if (!expHandler.isExpressionSetMode())
-            led1.Set(use_preset ? 1.0f : 0.0f); 
+        swell = false;
+        force_reset = true;
     }
-
-
+    if (!expression_pressed && !expHandler.isExpressionSetMode())
+        led1.Set(swell ? 1.0f : 0.0f);
 
 }
 
@@ -443,7 +373,7 @@ void UpdateSwitches()
         } else {
             toggleValues[1] = 1;
         }
-        //updateSwitch2(); // action for routing toggle handled in the audio callback
+        updateSwitch2(); 
     }
 
     // 3-way Switch 3
@@ -462,7 +392,7 @@ void UpdateSwitches()
         } else {
             toggleValues[2] = 1;
         }
-        updateSwitch3();
+        // action for routing toggle handled in the audio callback
     }
 
     update_switches = false; // only update once after turning off preset
@@ -499,47 +429,46 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
     float newExpressionValues[6];
 
 
-    if (!use_preset) {  // TODO Do I want to lock out the knobs when using a preset?
 
-        // Knob 1
-        if (!midi_control[0])   // If not under midi control, use knob ADC
-            pknobValues[0] = knobValues[0] = rsize.Process();
-        else if (knobMoved(pknobValues[0], rsize.Process()))  // If midi controlled, watch for knob movement to end Midi control
-            midi_control[0] = false;
 
-        // Knob 2
-        if (!midi_control[1])   // If not under midi control, use knob ADC
-            pknobValues[1] = knobValues[1] = mix.Process();
-        else if (knobMoved(pknobValues[1], mix.Process()))  // If midi controlled, watch for knob movement to end Midi control
-            midi_control[1] = false;
+    // Knob 1
+    if (!midi_control[0])   // If not under midi control, use knob ADC
+        pknobValues[0] = knobValues[0] = rsize.Process();
+    else if (knobMoved(pknobValues[0], rsize.Process()))  // If midi controlled, watch for knob movement to end Midi control
+        midi_control[0] = false;
 
-        // Knob 3
-        if (!midi_control[2])   // If not under midi control, use knob ADC
-            pknobValues[2] = knobValues[2] = delayTime.Process();
-        else if (knobMoved(pknobValues[2], delayTime.Process()))  // If midi controlled, watch for knob movement to end Midi control
-            midi_control[2] = false;
+    // Knob 2
+    if (!midi_control[1])   // If not under midi control, use knob ADC
+        pknobValues[1] = knobValues[1] = mix.Process();
+    else if (knobMoved(pknobValues[1], mix.Process()))  // If midi controlled, watch for knob movement to end Midi control
+        midi_control[1] = false;
 
-        // Knob 4
-        if (!midi_control[3])   // If not under midi control, use knob ADC
-            pknobValues[3] = knobValues[3] = modify.Process();
-        else if (knobMoved(pknobValues[3], modify.Process()))  // If midi controlled, watch for knob movement to end Midi control
-            midi_control[3] = false;
+    // Knob 3
+    if (!midi_control[2])   // If not under midi control, use knob ADC
+        pknobValues[2] = knobValues[2] = delayTime.Process();
+    else if (knobMoved(pknobValues[2], delayTime.Process()))  // If midi controlled, watch for knob movement to end Midi control
+        midi_control[2] = false;
+
+    // Knob 4
+    if (!midi_control[3])   // If not under midi control, use knob ADC
+        pknobValues[3] = knobValues[3] = modify.Process();
+    else if (knobMoved(pknobValues[3], modify.Process()))  // If midi controlled, watch for knob movement to end Midi control
+        midi_control[3] = false;
+
+    // Knob 5
+    if (!midi_control[4])   // If not under midi control, use knob ADC
+       pknobValues[4] = knobValues[4] = filter.Process();
+    else if (knobMoved(pknobValues[4], filter.Process()))  // If midi controlled, watch for knob movement to end Midi control
+        midi_control[4] = false;
     
 
-        // Knob 5
-        if (!midi_control[4])   // If not under midi control, use knob ADC
-            pknobValues[4] = knobValues[4] = filter.Process();
-        else if (knobMoved(pknobValues[4], filter.Process()))  // If midi controlled, watch for knob movement to end Midi control
-            midi_control[4] = false;
-    
+    // Knob 6
+    if (!midi_control[5])   // If not under midi control, use knob ADC
+        pknobValues[5] = knobValues[5] = delayFDBK.Process();
+    else if (knobMoved(pknobValues[5], delayFDBK.Process()))  // If midi controlled, watch for knob movement to end Midi control
+        midi_control[5] = false;
 
-        // Knob 6
-        if (!midi_control[5])   // If not under midi control, use knob ADC
-            pknobValues[5] = knobValues[5] = delayFDBK.Process();
-        else if (knobMoved(pknobValues[5], delayFDBK.Process()))  // If midi controlled, watch for knob movement to end Midi control
-            midi_control[5] = false;
 
-    }
 
 
     float vexpression = expression.Process(); // 0 is heel (up), 1 is toe (down)
@@ -682,7 +611,7 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
             // Delay and Reverb Routing based on Switch3 Position
             //        Up=Delay + and into Reverb     Middle= Delay and Reverb in Parallel  Down= Delay into Reverb
 
-            if ((toggleValues[1] == 0) || (toggleValues[1] == 2)) {  // Up or Down Delay into reverb
+            if ((toggleValues[2] == 0) || (toggleValues[2] == 2)) {  // Up or Down Delay into reverb
                 inL[0] = delay_inL + delay_outL;
                 inR[0] = delay_inR + delay_outR;
 
@@ -698,7 +627,7 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
             float balanced_outL;
             float balanced_outR;
 
-            if (!(toggleValues[1] == 2)) {  // If switch3 not down (if either up or middle position) add delay
+            if (!(toggleValues[2] == 2)) {  // If switch3 not down (if either up or middle position) add delay
                 balanced_outL =  (outL[0] * (reverbMix * 1.2) + delay_outL) * wetMix; // Apply mix and level controls, slight reverb boost
                 balanced_outR =  (outR[0] * (reverbMix * 1.2) + delay_outR) * wetMix;
             } else {
@@ -864,7 +793,7 @@ int main(void)
     ramp = 0.0;
     triggerMode = false;
 
-    updateSwitch3();
+    updateSwitch2();
 
     switch1[0]= Soundsketch::SWITCH_1_UP;
     switch1[1]= Soundsketch::SWITCH_1_DOWN;
@@ -907,12 +836,6 @@ int main(void)
     led2.Init(hw.seed.GetPin(Soundsketch::LED_2),false);
     led2.Update();
 
-
-    //Initilize the PersistentStorage Object with default values.
-    //Defaults will be the first values stored in flash when the device is first turned on. They can also be restored at a later date using the RestoreDefaults method
-    Settings DefaultSettings = {0.0f, 0.0f};
-    SavedSettings.Init(DefaultSettings);
-
     hw.InitMidi();
     hw.midi.StartReceive();
 
@@ -927,12 +850,6 @@ int main(void)
             HandleMidiMessage(hw.midi.PopEvent());
         }
 
-        if(trigger_save) {
-			
-	    SavedSettings.Save(); // Writing locally stored settings to the external flash
-	    trigger_save = false;
-        blink = 0;
-	    }
 	System::Delay(100);
     }
 }

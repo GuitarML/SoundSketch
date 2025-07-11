@@ -5,6 +5,7 @@
 #include "fm_synth_2op.h"
 #include "expressionHandler.h"
 #include <q/fx/envelope.hpp>
+#include "varSpeedLooper.h"
 
 //
 // This is a template for creating a pedal on the GuitarML Funbox_v3/Daisy Seed platform.
@@ -60,16 +61,25 @@ float      current_grainsize; //for smoothing the size param
 
 int mode = 0; // Sets the envelope mode with 2nd toggle
 
-#define MAX_SAMPLE static_cast<int>(48000.0 / 2) // 0.5 second sample (delay), continually updating with live audio
-#define MAX_SAMPLE_SIZET static_cast<size_t>(MAX_SAMPLE) 
+//#define MAX_SAMPLE static_cast<int>(48000.0 / 2) // 0.5 second sample (delay), continually updating with live audio
+//#define MAX_SAMPLE_SIZET static_cast<size_t>(MAX_SAMPLE) 
 //float DSY_SDRAM_BSS audioSample[MAX_SAMPLE_SIZET];  // Need to initialize this to all 0's
-float audioSample[MAX_SAMPLE_SIZET];  
+//float audioSample[MAX_SAMPLE_SIZET];  
 
+// 1/2 second at 48kHz
+#define MAX_SAMPLE_GRAN 24000
+//float DSY_SDRAM_BSS buffer_gran_delay[MAX_SAMPLE_GRAN];
+float buffer_gran_delay[MAX_SAMPLE_GRAN]; // use in SRAM, not SDRAM
 
 GranularPlayerMod swarm[2];
 
+daisysp_modified::varSpeedLooper m_looper;
+bool m_loop_recorded = false;
+int first_count = 0;
 
-int sample_index;
+
+
+//int sample_index;
 bool trigger;
 int fade_length;  // fade in/fade out audio sample by this many individual samples
 int current_grain_buffer_size;
@@ -425,6 +435,9 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
         pspeed_raw = vspeed_raw;
     }
 
+    // Set looper feedback
+    m_looper.SetFripDecay(vfeedback);
+
 
     first_start=false;
     force_reset = false;
@@ -448,6 +461,9 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
             }
         }
 
+
+        float looperOutput = 0.0;
+
         // Process your signal here
         if(bypass)
         {
@@ -455,6 +471,20 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
             out[0][i] = out[1][i] = in[0][i];  // MISO when in bypass
 
         } else {   
+
+                    // First record workaround, TODO maybe not needed
+            if (!m_loop_recorded) {
+                if (first_count == 0) {
+                    m_looper.TrigRecord(); 
+                }
+                if (first_count > 23999) {
+                    m_loop_recorded = true;
+                    m_looper.TrigRecord();
+                } else {
+                    first_count += 1;
+                }
+            }
+
             
             float input = in[0][i];
 
@@ -467,13 +497,16 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
 
             // If not in Hold mode, process the next sample into delayline and loop back when it reaches the end
             if (!hold) {
-                float next_sample_feedback = audioSample[sample_index] * vfeedback; //const feedback for now
-                audioSample[sample_index] = next_sample_feedback + input;
-                sample_index += 1;
-                if (sample_index > (MAX_SAMPLE-1)) {
-                    sample_index = 0;
 
-                }
+                looperOutput = m_looper.Process(input); // Note: looperOutput is unused
+
+                //float next_sample_feedback = audioSample[sample_index] * vfeedback; //const feedback for now
+                //audioSample[sample_index] = next_sample_feedback + input;
+                //sample_index += 1;
+                //if (sample_index > (MAX_SAMPLE-1)) {
+                //    sample_index = 0;
+
+                //}
             }
 
             /** Processes the granular player.
@@ -747,13 +780,18 @@ int main(void)
     samplesTilMuteOff = 0;
     samplesTilBypassToggle = 0;
 
-    sample_index = 0;
+    //sample_index = 0;
     counter = 0;
 
-    // I dont think this is needed after moving buffer from SDRAM to SRAM TODO Verify that
-    //for(int i = 0; i < MAX_SAMPLE; i++) { // hard coding sample length for now
-    //    audioSample[i] = 0.;
-    //}
+
+    // Init the looper
+    m_looper.Init(buffer_gran_delay, MAX_SAMPLE_GRAN);
+    m_looper.SetMode(static_cast<daisysp_modified::varSpeedLooper::Mode>(3)); // Frippertronics mode
+    
+    for(int i = 0; i < MAX_SAMPLE_GRAN; i++) {  // Might not be needed, SRAM buffer inits to 0's?
+        buffer_gran_delay[i] = 0.;
+    }
+
 
     /** Initializes the GranularPlayer module.
         \param sample pointer to the sample to be played
@@ -764,8 +802,8 @@ int main(void)
     // 10 (20 total grains) seems to be hitting a processing limit on Daisy Seed
     // Can handle more than 2 granular players, but going for a 
     // more sparse sound with Uranus.
-    swarm[0].Init(audioSample, MAX_SAMPLE, samplerate, 0.0, 0.5);
-    swarm[1].Init(audioSample, MAX_SAMPLE, samplerate, 0.25, 0.75);
+    swarm[0].Init(buffer_gran_delay, MAX_SAMPLE_GRAN, samplerate, 0.0, 0.5);
+    swarm[1].Init(buffer_gran_delay, MAX_SAMPLE_GRAN, samplerate, 0.25, 0.75);
 
 
     // monophonic granular synth envelope
