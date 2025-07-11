@@ -14,8 +14,8 @@ OPT=-Ofast
 CPP_SOURCES = uranus.cpp granularplayermod.cpp operator.cpp
 
 # Library Locations
-LIBDAISY_DIR = ../../libDaisy
-DAISYSP_DIR = ../../DaisySP
+LIBDAISY_DIR = ../../deps/libDaisy
+DAISYSP_DIR = ../../deps/DaisySP
 
 # Core location, and generic Makefile.
 SYSTEM_FILES_DIR = $(LIBDAISY_DIR)/core
@@ -23,6 +23,6 @@ include $(SYSTEM_FILES_DIR)/Makefile
 
 
 # Include funbox.h
-C_INCLUDES += -I../../infra/include
-C_INCLUDES += -I../../q/q_lib/include
+C_INCLUDES += -I../../deps/infra/include
+C_INCLUDES += -I../../deps/q/q_lib/include
 C_INCLUDES += -I../../include
