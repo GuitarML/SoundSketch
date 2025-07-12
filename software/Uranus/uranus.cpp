@@ -214,17 +214,32 @@ void UpdateButtons()
     if(hw.switches[Soundsketch::FOOTSWITCH_2].FallingEdge())
     {
         if (!expression_pressed && (samplesTilMuteOff < 1)) { // This keeps the pedal from switching bypass when entering/leaving Set Expression mode
-            bypass = !bypass;
-            led2.Set(bypass ? 0.0f : 1.0f);
+            if (alternateMode) {
+                alternateMode = false;
+                force_reset = true; // force parameter reset to enforce current knob settings when leaving alternate mode
+                led2.Set(1.0f);
+            } else {
+                bypass = !bypass;
+                led2.Set(bypass ? 0.0f : 1.0f);
 
-            // Mute audio output to remove pop when relay bypass is switched
-            // and start countdowns for triggering the relay bypass, and then unmuting audio
-            SetAudioMute(true);
-            samplesTilMuteOff = muteOffTransitionTimeInSamples;
-            samplesTilBypassToggle = bypassToggleTransitionTimeInSamples;
+                // Mute audio output to remove pop when relay bypass is switched
+                // and start countdowns for triggering the relay bypass, and then unmuting audio
+                SetAudioMute(true);
+                samplesTilMuteOff = muteOffTransitionTimeInSamples;
+                samplesTilBypassToggle = bypassToggleTransitionTimeInSamples;
+            }
+
         }
         expression_pressed = false;
     }
+
+
+    // Toggle Alternate mode by holding down the left footswitch, if not already in alternate mode and not in bypass
+    if(hw.switches[Soundsketch::FOOTSWITCH_2].TimeHeldMs() >= 600 && !alternateMode && !bypass && !hw.switches[Soundsketch::FOOTSWITCH_1].Pressed() && !expression_pressed) { // TODO Check logic here
+        alternateMode = true;
+        led2.Set(0.5f);  // Dim LED in alternate mode
+    }
+
 
 
     // Toggle Expression mode by holding down both footswitches for half a second
