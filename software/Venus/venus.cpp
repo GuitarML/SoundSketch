@@ -482,7 +482,7 @@ static void AudioCallback(AudioHandle::InputBuffer  in,
                 wet = samplerateReducer.Process(stft->read());
             }
 
-	    out[0][i] = wet * vmix + in[0][i] * (1.0 - vmix); // read the next sample from the STFT
+	    out[0][i] = 3.0 * ( wet * vmix + in[0][i] * (1.0 - vmix)); // read the next sample from the STFT  // NOTE: Trying louder vol output 3x for testing with echo master, seeing if noise is better
 	    out[1][i] = out[0][i]; // Mono processing for now
         }
     }
