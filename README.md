@@ -5,3 +5,6 @@ Hardware and software for Soundsketch guitar pedal as shown on [Youtube](https:/
 Borrows from the open source [DaisySeedProjects](https://github.com/bkshepherd/DaisySeedProjects) pedal, but expression and 3 way toggles, and screen/encoder, midi out removed. 
 
 Not all of the software modules have been tested.
+
+Tayda Drill Template:
+https://drill.taydakits.com/box-designs/new?public_key=MndaazFjcjJRM3hIUVQxenhPUm1Rdz09Cg==
