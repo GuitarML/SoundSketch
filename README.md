@@ -6,7 +6,7 @@ Borrows from the open source [DaisySeedProjects](https://github.com/bkshepherd/D
 
 Not all of the Planet Series software modules ported from Funbox have been tested, some code editing may be required. 
 
-IMPORTANT: When ordering Assembled Soundsketch PCBs from JLCPcb or PCBway, you have to manually rotate certain compoenents to the correct orientation on their online tool as part of the ordering process. This is required because the part data exported from KiCad to the .pos file is a different standard from what is expected by the manufacturer. Use the KiCad PCB view to verify correct orientation of ICs and diodes when compared to the manufacturer's parts visualization tool. 
+IMPORTANT: When ordering assembled Soundsketch PCBs from JLCPcb or PCBway, you have to manually rotate certain components to the correct orientation on their online tool as part of the ordering process. This is required because the part data exported from KiCad to the .pos file is a different standard from what is expected by the manufacturer. Use the KiCad PCB view to verify correct orientation of ICs and diodes when compared to the manufacturer's parts visualization tool. 
 
 Tayda Drill Template:
 https://drill.taydakits.com/box-designs/new?public_key=MndaazFjcjJRM3hIUVQxenhPUm1Rdz09Cg==
